@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ── User ──────────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  VIEWER
+}
+
+// ── Restaurant (Lead) ─────────────────────────────────────────
+model Restaurant {
+  id             String       @id @default(cuid())
+  placeId        String       @unique  // Google Place ID
+  name           String
+  category       String
+  address        String
+  city           String
+  state          String       @default("Uttarakhand")
+  country        String       @default("India")
+  latitude       Float?
+  longitude      Float?
+  phone          String?
+  email          String?      // publicly available business email only
+  website        String?
+  mapsUrl        String?
+  rating         Float?
+  reviews        Int?         @default(0)
+  hasWebsite     Boolean      @default(false)
+  businessStatus String?
+  openingHours   Json?
+  photos         Json?        // array of photo references
+  businessTypes  Json?        // array of types from Google
+  leadStatus     LeadStatus   @default(NEW)
+  notes          String?
+  searchRadius   Int?         // radius used when this was found
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  emailLogs EmailLog[]
+  smsLogs   SmsLog[]
+
+  @@index([city])
+  @@index([hasWebsite])
+  @@index([leadStatus])
+  @@index([category])
+  @@map("restaurants")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  FOLLOW_UP
+  CLIENT
+  LOST
+}
+
+// ── Email Template ────────────────────────────────────────────
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String
+  body      String   // HTML body
+  variables Json?    // list of variable names used
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+// ── Email Log ─────────────────────────────────────────────────
+model EmailLog {
+  id           String      @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  subject      String
+  body         String
+  toEmail      String
+  fromEmail    String
+  provider     String      @default("smtp") // smtp | resend
+  status       EmailStatus @default(PENDING)
+  error        String?
+  sentAt       DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@index([restaurantId])
+  @@index([status])
+  @@map("email_logs")
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
+}
+
+// ── SMS Log ───────────────────────────────────────────────────
+model SmsLog {
+  id           String    @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  message      String
+  toPhone      String
+  provider     String    @default("twilio") // twilio | whatsapp
+  status       SmsStatus @default(PENDING)
+  error        String?
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([restaurantId])
+  @@map("sms_logs")
+}
+
+enum SmsStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ── Search History ────────────────────────────────────────────
+model SearchHistory {
+  id           String   @id @default(cuid())
+  city         String
+  category     String
+  radius       Int
+  resultsCount Int      @default(0)
+  newLeads     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@map("search_history")
+}
+
+// ── App Settings ──────────────────────────────────────────────
+model Settings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
